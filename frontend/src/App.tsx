@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
-import { getCredential, setCredential } from './api/client'
 import type { SystemPrompt } from './api/types'
+import { useAuth, type AuthUser } from './auth/useAuth'
 import { ErrorAlert } from './components/Alert'
 import { Layout } from './components/Layout'
 import { SessionContext, type RunRecord, type Session } from './context/session'
@@ -15,20 +15,13 @@ import { SignInPage } from './pages/SignInPage'
 import { VersionsPage } from './pages/VersionsPage'
 
 export default function App() {
-  const [user, setUser] = useState(getCredential)
-  const signIn = (value: string) => {
-    setCredential(value)
-    setUser(value)
-  }
-  const signOut = useCallback(() => {
-    setCredential(null)
-    setUser(null)
-  }, [])
-  if (!user) return <SignInPage onSignIn={signIn} />
-  return <SignedIn key={user} user={user} onSignOut={signOut} />
+  const { user, signInDev, signInWithPassword, signOut } = useAuth()
+  if (user === undefined) return <div className="center small">Loading…</div> // restoring a Supabase session
+  if (!user) return <SignInPage onDevSignIn={signInDev} onPasswordSignIn={signInWithPassword} />
+  return <SignedIn key={user.id} user={user} onSignOut={signOut} />
 }
 
-function SignedIn({ user, onSignOut }: { user: string; onSignOut: () => void }) {
+function SignedIn({ user, onSignOut }: { user: AuthUser; onSignOut: () => void }) {
   // The caller's effective prompt also says whether they are an admin, which shapes the navigation.
   const me = useApi<SystemPrompt>('/users/me/system-prompt')
   const [runs, setRuns] = useState<RunRecord[]>([])

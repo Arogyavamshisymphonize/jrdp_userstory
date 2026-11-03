@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { DEV_USER_KEY } from './auth/config'
 
 describe('App', () => {
   it('asks the user to sign in before calling the API', async () => {
@@ -15,11 +16,11 @@ describe('App', () => {
     // signed in: the app now calls the API, and an unreachable backend shows one clear message
     expect(await screen.findByText('The backend is not reachable.')).toBeInTheDocument()
     expect(screen.getAllByRole('alert')).toHaveLength(1)
-    expect(sessionStorage.getItem('relay.auth')).toBe('priya')
+    expect(sessionStorage.getItem(DEV_USER_KEY)).toBe('priya')
   })
 
   it('shows the navigation once signed in, with admin pages only for admins', async () => {
-    sessionStorage.setItem('relay.auth', 'admin')
+    sessionStorage.setItem(DEV_USER_KEY, 'admin')
     const me = { base_version: 1, patch_version: null, conflict: false, conflict_patch_version: null, sections: { Rules: 'r' }, protected_sections: ['Role'], prompt: '', is_admin: true }
     vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(url.endsWith('/system-prompt') ? me : []), { status: 200 }))))
     render(<App />)

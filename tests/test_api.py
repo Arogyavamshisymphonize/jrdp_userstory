@@ -252,6 +252,24 @@ def test_oidc(monkeypatch):
     assert c.get("/api/v1/users/me/system-prompt", headers={"X-User-Id": "u1"}).status_code == 401
 
 
+def test_supabase_auth_token_is_accepted(monkeypatch):
+    """Supabase Auth issues ES256 tokens: iss=<project>/auth/v1, aud=authenticated, sub=user UUID."""
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    priv = ec.generate_private_key(ec.SECP256R1())
+    issuer = "https://example-ref.supabase.co/auth/v1"
+    monkeypatch.setattr(config, "AUTH_MODE", "oidc")
+    monkeypatch.setattr(config, "OIDC_ISSUER", issuer)
+    monkeypatch.setattr(config, "OIDC_AUDIENCE", "authenticated")
+    monkeypatch.setattr(auth, "_jwks", lambda: type("J", (), {"get_signing_key_from_jwt": lambda self, t: type("K", (), {"key": priv.public_key()})})())
+    sub = "5f0c2a8e-1b7d-4c1e-9a55-0d2f7c3b9e11"
+    token = jwt.encode({"sub": sub, "iss": issuer, "aud": "authenticated", "role": "authenticated",
+                        "email": "priya@example.com", "exp": int(time.time()) + 60}, priv, algorithm="ES256")
+    assert auth.verify(token) == sub
+    r = TestClient(main.app).get("/api/v1/users/me/system-prompt", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+
+
 def test_production_refuses_unsafe_config(monkeypatch):
     monkeypatch.setattr(config, "ENV", "production")
     with pytest.raises(SystemExit, match="AUTH_MODE=oidc"):

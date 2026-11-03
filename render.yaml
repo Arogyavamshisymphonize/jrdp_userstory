@@ -1,6 +1,6 @@
 # Render Blueprint: one free web service runs the API and serves the React UI from the same image.
 # Render > New > Blueprint > pick this repo. Values marked sync: false are asked for on first deploy
-# (Render dashboard > service > Environment to change them later).
+# (Render dashboard > service > Environment to change them later). Users sign in with Supabase Auth.
 services:
   - type: web
     name: relay
@@ -15,25 +15,32 @@ services:
       uvicorn app:app --host 0.0.0.0 --port $PORT --workers ${WEB_CONCURRENCY:-1}
       --proxy-headers --forwarded-allow-ips='*' --no-access-log"
     envVars:
+      # --- API ---
       - key: APP_ENV
         value: production
       - key: AUTH_MODE
         value: oidc
-      - key: VITE_AUTH_MODE # build-time, for the UI
-        value: oidc
+      # Supabase Auth tokens (public values; replace the project ref if you move projects)
+      - key: OIDC_ISSUER
+        value: https://sxslrxuspymiunzaroye.supabase.co/auth/v1
+      - key: OIDC_AUDIENCE
+        value: authenticated
+      - key: OIDC_JWKS_URL
+        value: https://sxslrxuspymiunzaroye.supabase.co/auth/v1/.well-known/jwks.json
       - key: DATABASE_URL # Supabase session pooler URL, postgresql+psycopg://...?sslmode=require
         sync: false
       - key: KEKS # k1:<python -m src.manage gen-kek>; a new key, keep a copy in a password manager
         sync: false
-      - key: OIDC_ISSUER
-        sync: false
-      - key: OIDC_AUDIENCE
-        sync: false
-      - key: OIDC_JWKS_URL
-        sync: false
-      - key: ADMIN_USERS # comma-separated OIDC `sub` values
+      - key: ADMIN_USERS # comma-separated Supabase user UIDs (Authentication > Users)
         sync: false
       - key: WEB_CONCURRENCY # free instances have 512 MB
         value: "1"
       - key: DB_POOL_SIZE
         value: "5"
+      # --- UI (baked in at build time) ---
+      - key: VITE_AUTH_MODE
+        value: supabase
+      - key: VITE_SUPABASE_URL
+        value: https://sxslrxuspymiunzaroye.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY # Project Settings > API: the anon / publishable key, NOT service_role
+        sync: false

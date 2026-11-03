@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router'
-import { AUTH_MODE } from '../api/client'
 import { useSession } from '../context/session'
 import { Icon, LogoMark, type IconName } from './Icon'
 
@@ -14,7 +13,7 @@ function Item({ to, icon, children }: { to: string; icon: IconName; children: st
 
 export function Layout() {
   const { user, me, signOut } = useSession()
-  const name = AUTH_MODE === 'dev' ? user : 'Signed in'
+  const name = user.label
   return (
     <div className="shell">
       <nav aria-label="Main" className="sidebar">

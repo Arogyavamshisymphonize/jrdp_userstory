@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { ApiError } from '../api/client'
 import type { ExecutionResult, SystemPrompt } from '../api/types'
+import type { AuthUser } from '../auth/useAuth'
 
 /** One run from this browser session (the API has no "my runs" list, so recent runs live here). */
 export interface RunRecord {
@@ -13,7 +14,7 @@ export interface RunRecord {
 }
 
 export interface Session {
-  user: string // dev: the user id; oidc: the access token (never displayed)
+  user: AuthUser
   me: SystemPrompt
   reloadMe: () => void
   runs: RunRecord[]

@@ -18,8 +18,10 @@ services:
     image: relay
     build: &build
       context: .
-      args:
-        VITE_AUTH_MODE: ${AUTH_MODE:-oidc}  # the UI's sign-in matches the API's auth mode
+      args:  # the UI's sign-in must match the API: AUTH_MODE=dev -> dev, AUTH_MODE=oidc -> supabase
+        VITE_AUTH_MODE: ${VITE_AUTH_MODE:-dev}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
     command: python -m src.manage migrate
     env_file: .env
 
