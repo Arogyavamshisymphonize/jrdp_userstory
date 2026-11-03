@@ -14,24 +14,16 @@ services:
       interval: 5s
       retries: 10
 
-  migrate:
+  app:  # API + React UI on one origin: http://localhost:8000. Migrates on start, like on Render.
     image: relay
-    build: &build
+    build:
       context: .
       args:  # the UI's sign-in must match the API: AUTH_MODE=dev -> dev, AUTH_MODE=oidc -> supabase
         VITE_AUTH_MODE: ${VITE_AUTH_MODE:-dev}
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-    command: python -m src.manage migrate
-    env_file: .env
-
-  app:  # API + React UI on one origin: http://localhost:8000
-    image: relay
-    build: *build
     env_file: .env
     ports: ["8000:8000"]
-    depends_on:
-      migrate: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz')"]
       interval: 10s
