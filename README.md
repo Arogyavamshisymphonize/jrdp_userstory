@@ -49,7 +49,7 @@ access token on every request (`AUTH_MODE=oidc`). The two halves must match:
 
 Production-shaped stack (against Supabase):
 
-    docker compose up --build      # migrate -> app on http://localhost:8000 (API + the React build, one origin)
+    docker compose up --build      # app on http://localhost:8000: migrates, then serves the API + the React build
 
 Backend tests need a throwaway PostgreSQL: they drop and recreate the `public` schema, so they refuse to run against Supabase.
 
@@ -76,8 +76,8 @@ an origin (no CORS, no proxy). The database stays on Supabase. [`render.yaml`](r
    `uv run python -m src.manage gen-kek`, kept somewhere safe: losing it makes stored API keys unreadable),
    `ADMIN_USERS` (Supabase user UIDs) and `VITE_SUPABASE_ANON_KEY` (Project Settings > API). The Supabase Auth
    URLs are already in the blueprint; change the project ref there if you use another project.
-3. Deploy. On start the service runs `python -m src.manage migrate` (migrations, provider list, base prompt),
-   then the API. Render's health check calls `/readyz`. Every push to the branch redeploys.
+3. Deploy. The image's start command runs `python -m src.manage migrate` (migrations, provider list, base
+   prompt), then the API, so leave Render's *Docker Command* setting empty. Render's health check calls `/readyz`. Every push to the branch redeploys.
 
 Render terminates TLS. The API will not start without a PostgreSQL `DATABASE_URL` and `KEKS`; with
 `APP_ENV=production` it also needs OIDC auth, and `/docs` is off. Free instances sleep after ~15 minutes idle;

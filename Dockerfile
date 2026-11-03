@@ -24,5 +24,6 @@ COPY --from=ui /ui/dist frontend/dist
 RUN useradd --uid 10001 app
 USER app
 EXPOSE 8000
-# $PORT is set by Render (and most PaaS); 8000 locally
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --proxy-headers --forwarded-allow-ips='*' --no-access-log"]
+# Migrate (idempotent: schema, provider list, base prompt), then serve. $PORT is set by Render; 8000 locally.
+# ponytail: migrating on start suits one instance; with several, run `python -m src.manage migrate` once per deploy instead
+CMD ["sh", "-c", "python -m src.manage migrate && exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --proxy-headers --forwarded-allow-ips='*' --no-access-log"]
