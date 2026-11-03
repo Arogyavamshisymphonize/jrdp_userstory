@@ -58,6 +58,27 @@ export interface BasePrompt {
   published_at: string | null
 }
 
+/** One run as listed by /users/me/runs and /admin/audit (from the execution_audit table). */
+export interface RunSummary {
+  created_at: string
+  correlation_id: string
+  user_id: string
+  provider_id: string
+  model_id: string
+  base_version: number | null
+  patch_version: number | null
+  status: string
+  tokens_in: number | null
+  tokens_out: number | null
+  latency_ms: number | null
+}
+
+/** The caller's own run: also the task, and the answer when it was delivered (never a withheld one). */
+export interface MyRun extends RunSummary {
+  task_text: string | null
+  response_text: string | null
+}
+
 export interface AuditRow {
   id: number
   user_id: string

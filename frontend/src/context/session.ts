@@ -30,6 +30,6 @@ export function useSession(): Session {
   return session
 }
 
-export function promptLabel(me: Pick<SystemPrompt, 'base_version' | 'patch_version'>) {
-  return `Base v${me.base_version}` + (me.patch_version ? ` + patch v${me.patch_version}` : ' · no patch')
+export function promptLabel(v: { base_version: number | null; patch_version: number | null }) {
+  return `Base v${v.base_version ?? '–'}` + (v.patch_version ? ` + patch v${v.patch_version}` : ' · no patch')
 }

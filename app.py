@@ -10,7 +10,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import anyio.to_thread
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import delete, select, text
@@ -269,6 +269,26 @@ def admin_publish_base(body: SectionsIn, admin=Depends(require_admin)):
     return {"base_version": version}
 
 
+def _run_columns():
+    a = db.audit.c
+    return [a.created_at, a.correlation_id, a.user_id, a.provider_id, a.model_id, a.base_version, a.patch_version,
+            a.status, a.tokens_in, a.tokens_out, a.latency_ms]
+
+
+@app.get("/api/v1/admin/audit")
+def admin_audit_list(user_id: str | None = None, status: str | None = None, limit: int = Query(100, ge=1, le=500),
+                     admin=Depends(require_admin)):
+    """Most recent runs, newest first, optionally for one user and/or one status (texts: use the trace)."""
+    a = db.audit.c
+    q = select(*_run_columns()).order_by(a.id.desc()).limit(limit)
+    if user_id:
+        q = q.where(a.user_id == user_id)
+    if status:
+        q = q.where(a.status == status)
+    with db.engine.connect() as conn:
+        return [dict(r) for r in conn.execute(q).mappings()]
+
+
 @app.get("/api/v1/admin/audit/{correlation_id}")
 def admin_audit(correlation_id: str, admin=Depends(require_admin)):
     """Trace one run by the correlationId its response carried: who, prompt versions, task, response, outcome."""
@@ -286,6 +306,18 @@ def admin_audit(correlation_id: str, admin=Depends(require_admin)):
 @app.post("/api/v1/agent/execute")
 def execute(body: TaskIn, user=Depends(current_user)):
     return asdict(execution_pipeline.run(user, body.task))
+
+
+@app.get("/api/v1/users/me/runs")
+def my_runs(limit: int = Query(50, ge=1, le=200), user=Depends(current_user)):
+    """The caller's own runs, newest first, with their task. The answer is included only when it was delivered:
+    a withheld answer (OUTPUT_BLOCKED) contains protected text the user must not see."""
+    a = db.audit.c
+    with db.engine.connect() as conn:
+        rows = conn.execute(
+            select(*_run_columns(), a.task_text, a.response_text).where(a.user_id == user).order_by(a.id.desc()).limit(limit)
+        ).mappings().all()
+    return [{**r, "response_text": r["response_text"] if r["status"] == "SUCCESS" else None} for r in rows]
 
 
 # ---------- UI (registered last: it catches every other GET) ----------
