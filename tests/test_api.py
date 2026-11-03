@@ -495,3 +495,27 @@ def test_serves_ui_without_shadowing_the_api():
     assert missing.status_code == 404 and missing.json()["code"] == "NOT_FOUND"
     assert c.get("/healthz").json() == {"status": "ok"}
     assert "<div id=\"root\">" in c.get("/..%2F..%2Fapp.py").text  # no escaping the build folder
+
+
+def test_runs_are_listed_from_the_database():
+    c = client("hist-user")
+    setup_user(c)
+    ok = c.post("/api/v1/agent/execute", json={"task": "summarise"}).json()
+    blocked = c.post("/api/v1/agent/execute", json={"task": "leak"}).json()
+
+    # the user's own history survives sign-out: it comes from execution_audit, newest first
+    mine = client("hist-user").get("/api/v1/users/me/runs").json()
+    assert [r["correlation_id"] for r in mine] == [blocked["correlationId"], ok["correlation_id"]]
+    assert mine[1]["status"] == "SUCCESS" and mine[1]["response_text"] == ok["output"] and mine[1]["task_text"] == "summarise"
+    assert mine[0]["status"] == "OUTPUT_BLOCKED" and mine[0]["response_text"] is None  # withheld text never goes to the user
+    assert client("someone-else").get("/api/v1/users/me/runs").json() == []
+
+    # admins list everyone's runs, filterable by user and status; others can't
+    assert c.get("/api/v1/admin/audit").status_code == 403
+    adm = client("adm")
+    rows = adm.get("/api/v1/admin/audit", params={"user_id": "hist-user"}).json()
+    assert [r["correlation_id"] for r in rows] == [blocked["correlationId"], ok["correlation_id"]]
+    assert "response_text" not in rows[0]  # the list stays light; the trace has the texts
+    only_blocked = adm.get("/api/v1/admin/audit", params={"user_id": "hist-user", "status": "OUTPUT_BLOCKED"}).json()
+    assert [r["correlation_id"] for r in only_blocked] == [blocked["correlationId"]]
+    assert adm.get("/api/v1/admin/audit", params={"limit": 0}).status_code == 400

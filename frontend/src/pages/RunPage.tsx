@@ -3,10 +3,10 @@ import { Link } from 'react-router'
 import { api, ApiError } from '../api/client'
 import type { ExecutionResult, Model, ModelPreference, Provider } from '../api/types'
 import { Alert, ErrorAlert } from '../components/Alert'
-import { RunStatus } from '../components/Badge'
 import { Icon } from '../components/Icon'
 import { Markdown } from '../components/Markdown'
 import { PageHeader } from '../components/PageHeader'
+import { RunHistory } from '../components/RunHistory'
 import { promptLabel, useSession } from '../context/session'
 import { useApi } from '../hooks/useApi'
 
@@ -156,44 +156,7 @@ export function RunPage() {
         </>
       )}
 
-      {runs.length > 0 && (
-        <section aria-label="Recent runs" className="card flush">
-          <div className="card-head" style={{ padding: '16px 20px', borderBottom: '1px solid var(--line-soft)' }}>
-            <h2 style={{ fontSize: 15 }}>Your recent runs</h2>
-            <span className="small">This browser session</span>
-          </div>
-          <div className="table-wrap">
-            <table style={{ minWidth: 640 }}>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Correlation ID</th>
-                  <th>Provider · model</th>
-                  <th>Prompt</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((r) => (
-                  <tr key={r.at.getTime()}>
-                    <td>{r.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {r.result?.correlation_id ?? r.error?.correlationId}
-                    </td>
-                    <td>
-                      {r.provider} · {r.model}
-                    </td>
-                    <td>{r.promptLabel}</td>
-                    <td>
-                      <RunStatus status={r.result ? 'SUCCESS' : (r.error?.code ?? 'ERROR')} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      <RunHistory refreshKey={runs.length} providerNames={Object.fromEntries((providers.data ?? []).map((p) => [p.id, p.name]))} />
     </>
   )
 }
