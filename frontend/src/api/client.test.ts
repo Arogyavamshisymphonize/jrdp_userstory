@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { api, ApiError, setCredential } from './client'
+import { DEV_USER_KEY } from '../auth/config'
+import { api, ApiError } from './client'
 
 const respond = (status: number, body: string, type = 'application/json') =>
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status, headers: { 'content-type': type } })))
@@ -7,7 +8,7 @@ const respond = (status: number, body: string, type = 'application/json') =>
 describe('api', () => {
   it('sends the dev user id and returns JSON', async () => {
     respond(200, '[{"id":"openai"}]')
-    setCredential('priya')
+    sessionStorage.setItem(DEV_USER_KEY, 'priya')
     await expect(api('GET', '/providers')).resolves.toEqual([{ id: 'openai' }])
     const [url, init] = vi.mocked(fetch).mock.calls[0]
     expect(url).toBe('/api/v1/providers')

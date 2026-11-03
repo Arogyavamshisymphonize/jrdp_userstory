@@ -4,9 +4,12 @@ WORKDIR /ui
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ .
-# oidc: users paste a bearer token; dev: any user id (X-User-Id). Render passes service env vars as build args.
-ARG VITE_AUTH_MODE=oidc
-ENV VITE_AUTH_MODE=$VITE_AUTH_MODE
+# Baked into the UI at build time (public values only). Render passes service env vars as build args.
+# supabase: email + password via Supabase Auth (API: AUTH_MODE=oidc); dev: any user id (API: AUTH_MODE=dev).
+ARG VITE_AUTH_MODE=supabase
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_AUTH_MODE=$VITE_AUTH_MODE VITE_SUPABASE_URL=$VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 RUN npm run build
 
 FROM python:3.12-slim

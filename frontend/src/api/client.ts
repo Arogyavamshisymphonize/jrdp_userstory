@@ -1,10 +1,7 @@
 // Thin fetch wrapper for the backend API. Never stores provider keys; only the caller's sign-in.
+import { AUTH_MODE, DEV_USER_KEY, supabase } from '../auth/config'
 
 const API = '/api/v1'
-const STORAGE_KEY = 'relay.auth'
-
-/** "dev": the API trusts an X-User-Id header (AUTH_MODE=dev). "oidc": a bearer access token. */
-export const AUTH_MODE: 'dev' | 'oidc' = import.meta.env.VITE_AUTH_MODE === 'oidc' ? 'oidc' : 'dev'
 
 export class ApiError extends Error {
   readonly code: string
@@ -19,22 +16,18 @@ export class ApiError extends Error {
   }
 }
 
-export function getCredential(): string | null {
-  return sessionStorage.getItem(STORAGE_KEY)
-}
-
-export function setCredential(value: string | null) {
-  if (value) sessionStorage.setItem(STORAGE_KEY, value)
-  else sessionStorage.removeItem(STORAGE_KEY)
+/** Who is calling: the dev user id, or the current Supabase access token (supabase-js refreshes it before expiry). */
+async function authHeaders(): Promise<Record<string, string>> {
+  if (AUTH_MODE === 'dev') {
+    const id = sessionStorage.getItem(DEV_USER_KEY)
+    return id ? { 'X-User-Id': id } : {}
+  }
+  const token = (await supabase?.auth.getSession())?.data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = {}
-  const credential = getCredential()
-  if (credential) {
-    if (AUTH_MODE === 'dev') headers['X-User-Id'] = credential
-    else headers.Authorization = `Bearer ${credential}`
-  }
+  const headers = await authHeaders()
   if (body !== undefined) headers['Content-Type'] = 'application/json'
 
   let response: Response

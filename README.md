@@ -24,8 +24,26 @@ In a second terminal, the UI:
     npm run dev                        & rem http://localhost:5173, proxies /api to :8000
 
 `.env` is read automatically (real environment variables win). The API docs are at http://localhost:8000/docs.
-The UI defaults to dev sign-in (any user ID; `admin` sees the admin tools). Build it with `VITE_AUTH_MODE=oidc` to
-ask for a bearer token instead.
+The UI defaults to dev sign-in (any user ID; `admin` sees the admin tools).
+
+## Sign-in (Supabase Auth)
+
+Outside local dev, users sign in with email + password through Supabase Auth, and the API verifies the Supabase
+access token on every request (`AUTH_MODE=oidc`). The two halves must match:
+
+| | API (`.env` / Render) | UI (build-time, public) |
+|---|---|---|
+| Dev | `AUTH_MODE=dev` | `VITE_AUTH_MODE=dev` (default) |
+| Supabase | `AUTH_MODE=oidc`, `OIDC_ISSUER=https://<ref>.supabase.co/auth/v1`, `OIDC_AUDIENCE=authenticated`, `OIDC_JWKS_URL=https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` | `VITE_AUTH_MODE=supabase`, `VITE_SUPABASE_URL=https://<ref>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<anon / publishable key>` |
+
+- **Users:** Supabase > Authentication > Users > *Add user > Create new user* (email + password, auto-confirm).
+  There is no self sign-up or password-reset screen; admins create users and reset passwords there.
+  Turn off *Allow new users to sign up* (Authentication > Sign In / Providers) so only provisioned users get in.
+- **Admins:** put their **User UID**s in `ADMIN_USERS` (comma-separated), then restart the API.
+- The project must use Supabase's asymmetric **JWT signing keys** (ES256/RS256, the default for new projects);
+  the API checks tokens against the JWKS URL. The anon key is public by design (RLS is on); never put the
+  `service_role` key in the UI.
+- To try Supabase sign-in locally: set the API values in `.env`, and the UI values in `frontend/.env.local`.
 
 ## Run
 
@@ -56,7 +74,8 @@ an origin (no CORS, no proxy). The database stays on Supabase. [`render.yaml`](r
 1. Push the repo to GitHub/GitLab, then in Render: **New > Blueprint**, pick the repo.
 2. Fill in the values it asks for: `DATABASE_URL` (Supabase session pooler), `KEKS` (a **new** key from
    `uv run python -m src.manage gen-kek`, kept somewhere safe: losing it makes stored API keys unreadable),
-   `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `ADMIN_USERS`.
+   `ADMIN_USERS` (Supabase user UIDs) and `VITE_SUPABASE_ANON_KEY` (Project Settings > API). The Supabase Auth
+   URLs are already in the blueprint; change the project ref there if you use another project.
 3. Deploy. On start the service runs `python -m src.manage migrate` (migrations, provider list, base prompt),
    then the API. Render's health check calls `/readyz`. Every push to the branch redeploys.
 
@@ -145,5 +164,5 @@ Three layers keep a user's edits from switching the protected rules off:
   mocks and real key-rejection calls only.
 - The Docker files have not been built yet.
 - Token counts for context checks are estimated (about 4 characters per token).
-- The UI asks for a pasted access token in production. It has no OAuth login flow.
+- Sign-in is email + password only (no Google/SSO button, sign-up or password-reset screens yet).
 - "Your recent runs" on the run page covers this browser session only; the API has no per-user run history.
