@@ -1,0 +1,39 @@
+# Render Blueprint: one free web service runs the API and serves the React UI from the same image.
+# Render > New > Blueprint > pick this repo. Values marked sync: false are asked for on first deploy
+# (Render dashboard > service > Environment to change them later).
+services:
+  - type: web
+    name: relay
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /readyz
+    autoDeploy: true
+    # Free plan has no pre-deploy step, so migrate on start (idempotent; fine for a single instance).
+    dockerCommand: >-
+      sh -c "python -m src.manage migrate &&
+      uvicorn app:app --host 0.0.0.0 --port $PORT --workers ${WEB_CONCURRENCY:-1}
+      --proxy-headers --forwarded-allow-ips='*' --no-access-log"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: AUTH_MODE
+        value: oidc
+      - key: VITE_AUTH_MODE # build-time, for the UI
+        value: oidc
+      - key: DATABASE_URL # Supabase session pooler URL, postgresql+psycopg://...?sslmode=require
+        sync: false
+      - key: KEKS # k1:<python -m src.manage gen-kek>; a new key, keep a copy in a password manager
+        sync: false
+      - key: OIDC_ISSUER
+        sync: false
+      - key: OIDC_AUDIENCE
+        sync: false
+      - key: OIDC_JWKS_URL
+        sync: false
+      - key: ADMIN_USERS # comma-separated OIDC `sub` values
+        sync: false
+      - key: WEB_CONCURRENCY # free instances have 512 MB
+        value: "1"
+      - key: DB_POOL_SIZE
+        value: "5"

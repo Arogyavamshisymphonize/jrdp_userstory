@@ -1,0 +1,27 @@
+[project]
+name = "jrdp-userstory"
+version = "0.1.0"
+description = "Multi-provider LLM agent: bring-your-own-key, protected base prompt, per-user prompt patches."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.143.1",
+    "uvicorn==0.54.0",
+    "httpx==0.28.1",
+    "cryptography==50.0.2",
+    "sqlalchemy==2.1.4",
+    "alembic==1.20.0",
+    "psycopg[binary]==3.3.6",
+    "pyjwt[crypto]==2.15.1",
+]
+
+[dependency-groups]
+dev = ["pytest==9.1.1"]  # the UI is a separate npm project in frontend/
+
+[tool.uv]
+package = false  # an app, not a library: run with `uv run`, nothing to build
+default-groups = ["dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # tests import app.py and src/ from the repo root

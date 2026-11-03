@@ -1,0 +1,56 @@
+"""Settings from environment (plus .env, if present). Production refuses to boot with an unsafe configuration."""
+import os
+import sys
+from pathlib import Path
+
+_DOTENV = Path(__file__).resolve().parents[2] / ".env"
+if _DOTENV.is_file():  # real environment variables win over .env
+    for _line in _DOTENV.read_text().splitlines():
+        _k, _sep, _v = _line.partition("=")
+        if _sep and _k.strip() and not _k.lstrip().startswith("#"):
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+
+def _env(name, default=None):
+    v = os.environ.get(name, default)
+    return v.strip() if isinstance(v, str) else v
+
+
+ENV = _env("APP_ENV", "development")  # development | production
+DATABASE_URL = _env("DATABASE_URL", "")  # Supabase session pooler, postgresql+psycopg://...
+AUTH_MODE = _env("AUTH_MODE", "dev" if ENV != "production" else "oidc")  # oidc | dev
+OIDC_ISSUER = _env("OIDC_ISSUER")
+OIDC_AUDIENCE = _env("OIDC_AUDIENCE")
+OIDC_JWKS_URL = _env("OIDC_JWKS_URL")
+OIDC_ALGORITHMS = [a.strip() for a in _env("OIDC_ALGORITHMS", "RS256,ES256").split(",") if a.strip()]
+# Key-encryption keys: "id:base64key,id:base64key". First entry encrypts new data; all decrypt.
+KEKS = _env("KEKS", "")
+ADMIN_USERS = {u.strip() for u in _env("ADMIN_USERS", "").split(",") if u.strip()}  # user ids (OIDC `sub`)
+LOG_LEVEL = _env("LOG_LEVEL", "INFO")
+DB_POOL_SIZE = int(_env("DB_POOL_SIZE", "5"))  # per worker; Supabase pooler connection limits are small
+THREADPOOL_SIZE = int(_env("THREADPOOL_SIZE", "100"))  # concurrent blocking provider calls per worker
+KEY_SAVES_PER_MINUTE = int(_env("KEY_SAVES_PER_MINUTE", "10"))
+EXECUTIONS_PER_MINUTE = int(_env("EXECUTIONS_PER_MINUTE", "30"))
+
+
+def validate():
+    errors = []
+    if ENV not in ("development", "production"):
+        errors.append("APP_ENV must be development or production")
+    if AUTH_MODE not in ("oidc", "dev"):
+        errors.append("AUTH_MODE must be oidc or dev")
+    if AUTH_MODE == "oidc" and not (OIDC_ISSUER and OIDC_AUDIENCE and OIDC_JWKS_URL):
+        errors.append("AUTH_MODE=oidc needs OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URL")
+    if not KEKS:
+        errors.append("KEKS is not set (generate one with: python -m src.manage gen-kek)")
+    else:
+        from src.components import key_vault as crypto  # local import: key_vault imports constants
+
+        try:
+            crypto._keks()
+        except Exception:
+            errors.append("KEKS must look like id:base64key (32 bytes), e.g. k1:<output of gen-kek>")
+    if ENV == "production" and AUTH_MODE != "oidc":
+        errors.append("production requires AUTH_MODE=oidc")
+    if errors:
+        sys.exit("Refusing to start:\n  - " + "\n  - ".join(errors))
