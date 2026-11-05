@@ -184,7 +184,8 @@ PROVIDERS = {
     "mistral": {
         "name": "Mistral",
         "base_url": "https://api.mistral.ai/v1",
-        "key_format": r"^[A-Za-z0-9]{24,}$",
+        # classic 32-char keys and newer mstrl_ prefixed ones
+        "key_format": r"^[A-Za-z0-9_\-]{24,}$",
         "adapter": OpenAICompatible("https://api.mistral.ai/v1"),
         "free_tier": None,  # not catalogued
     },

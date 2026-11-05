@@ -19,8 +19,11 @@ export function RunPage() {
   const [picked, setPicked] = useState<string | null>(null)
   const pid = picked ?? (connected.some((p) => p.id === pref.data?.provider_id) ? pref.data!.provider_id : connected[0]?.id) ?? null
   const models = useApi<Model[]>(pid ? `/providers/${pid}/models` : null)
-  const [freeOnly, setFreeOnly] = useState(false)
-  const modelIds = (models.data ?? []).filter((m) => !freeOnly || m.free_tier).map((m) => m.id)
+  const [freeOnly, setFreeOnly] = useState(true)
+  // Providers with no catalogued free models (OpenAI, Anthropic, Mistral)
+  // would show an empty list, so show all.
+  const hasFree = (models.data ?? []).some((m) => m.free_tier)
+  const modelIds = (models.data ?? []).filter((m) => !freeOnly || !hasFree || m.free_tier).map((m) => m.id)
   const [pickedModel, setPickedModel] = useState<string | null>(null)
   const model =
     (pickedModel && modelIds.includes(pickedModel) ? pickedModel : null) ??
@@ -112,8 +115,9 @@ export function RunPage() {
               </select>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, fontSize: 14 }}>
-              <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} style={{ width: 18, height: 18, margin: 0 }} />
+              <input type="checkbox" checked={freeOnly && hasFree} disabled={!hasFree} onChange={(e) => setFreeOnly(e.target.checked)} style={{ width: 18, height: 18, margin: 0 }} />
               Free-tier models only
+              {!hasFree && models.data ? ' (none listed)' : ''}
             </label>
           </section>
           {models.error && <ErrorAlert error={models.error} />}

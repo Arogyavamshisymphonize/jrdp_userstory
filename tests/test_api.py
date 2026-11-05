@@ -293,6 +293,10 @@ def test_error_mapping_and_redaction():
     gemini_new = "AQ.Qa7xFakeKeyForTestsOnly00_" + "x" * 20
     providers.check_key_format("gemini", "AIza" + "x" * 35)
     providers.check_key_format("gemini", gemini_new)
+    providers.check_key_format("mistral", "x" * 32)
+    providers.check_key_format("mistral", "mstrl_" + "x" * 30)
+    providers.check_key_format("openai", "sk-proj-" + "x" * 30)
+    providers.check_key_format("anthropic", "sk-ant-api03-" + "x" * 30)
     assert gemini_new not in logs.redact(f"key {gemini_new}")
 
 
